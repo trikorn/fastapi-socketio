@@ -100,3 +100,31 @@ async def match_find(sid):
             "state": matches[match_id]["state"]
         },
                        room=room)
+
+
+@sio.event
+async def match_input(sid, data):
+    """
+    data example:
+    { "match_id": "...", "action": {"type": "move", "x": 1, "y": 2} }
+    """
+    match_id = data.get("match_id")
+    action = data.get("action")
+    if not match_id or match_id not in matches:
+        await sio.emit("match:error", {"error": "unknown_match"}, room=sid)
+        return
+
+    match = matches[match_id]
+    if sid not in match["players"]:
+        await sio.emit("match:error", {"error": "not_in_match"}, room=sid)
+        return
+
+    # Apply action to server state (your game logic goes here)
+    match["state"]["turn"] += 1
+    match["state"]["log"].append({"by": sid, "action": action})
+
+    await sio.emit("match:state", {
+        "match_id": match_id,
+        "state": match["state"]
+    },
+                   room=match["room"])
